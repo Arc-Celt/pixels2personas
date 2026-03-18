@@ -2,8 +2,6 @@
 Community classification baselines (random and majority) for the 8-class
 personality communities, using the same 70/10/20 stratified split as the
 PC-based XGBoost and Random Forest classifiers.
-
-This script:
 - loads community labels and visual PCs CSVs
 - aligns samples on `character_json`
 - performs a single 70/10/20 stratified split

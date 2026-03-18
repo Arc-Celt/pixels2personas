@@ -1,9 +1,6 @@
 """
 Fine-tune DINOv2 for anime character period classification.
 
-This script fine-tunes a multi-class classifier for predicting anime time periods
-using DINOv2 as the backbone, with progressive unfreezing and class-weighted loss.
-
 Expected dataset structure:
 - data_dir/
   - train/{period}/*.jpg

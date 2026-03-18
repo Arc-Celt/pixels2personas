@@ -1,7 +1,5 @@
 """
 Character popularity prediction using avatar and personality PCs plus metadata.
-
-This script:
 - builds a per-character feature table by merging:
   - aggregated character info (including favorites, animeography, gender)
   - aggregated anime info (anime_favorites, year)

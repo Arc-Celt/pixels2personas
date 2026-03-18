@@ -24,8 +24,16 @@ The code is organized into modular scripts for each stage of the research pipeli
 
 ```text
 ├── scripts/
-    ├── data_collection/
-    │   └── character_bio_extraction.py              <- Parse character HTML into JSON
+    ├── data_collection/                             <- Data scraping and parsing
+    │   ├── crawl_char_ind.py
+    │   ├── crawl_characters.py
+    │   ├── crawl_high_res_image.py
+    │   ├── parse_mal.py
+    │   ├── parse_mal_char.py
+    │   ├── parse_ap.py
+    │   ├── parse_ap_characters.py
+    │   ├── extract_bio.py
+    │   └── character_bio_extraction.py
     ├── llm_annotation/
     │   ├── personality_keywords_annotation.py       <- LLM extraction of personality keywords
     │   └── reannotate_failures.py                   <- Re-run LLM on failed parses
@@ -51,6 +59,7 @@ The code is organized into modular scripts for each stage of the research pipeli
     │   ├── anime_character_mapping.py               <- Build anime-character mapping table
     │   ├── character_info_aggregation.py            <- Merge bio JSON + LLM keywords JSONL
     │   ├── compute_annotation_overlap.py            <- Overlap metrics between human vs model keyword sets
+    │   ├── compute_inter_annotator_agreement.py     <- Inter-annotator agreement metrics
     │   ├── prepare_period_classification_dataset.py <- Create train/val/test sets for period classification task
     │   └── prepare_community_classification_dataset.py <- Create train/val/test sets for archetype classification task
     └── plotting/                                    <- Plotting scripts

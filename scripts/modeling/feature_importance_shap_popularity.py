@@ -1,7 +1,5 @@
 """
 SHAP-based feature importance analysis for character popularity regression.
-
-This script:
 - loads previously trained popularity models and data (from the
   popularity regression pipeline)
 - selects the best HistGradientBoostingRegressor configuration

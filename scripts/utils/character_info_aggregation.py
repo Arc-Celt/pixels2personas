@@ -39,11 +39,14 @@ def load_keywords(keywords_file: Path) -> Dict[str, Dict]:
                 kw_obj = data.get("personality_keywords") or {}
                 if isinstance(kw_obj, dict):
                     english_kw = kw_obj.get("English") or kw_obj.get("english") or []
+                elif isinstance(kw_obj, list):
+                    english_kw = kw_obj
                 else:
-                    english_kw = kw_obj if isinstance(kw_obj, list) else []
+                    english_kw = []
+                english_kw = [str(x) for x in english_kw if str(x).strip()]
 
                 kw_map[char_json] = {
-                    "keywords": english_kw,
+                    "personality_keywords": {"English": english_kw},
                     "gender": data.get("gender", "Unknown"),
                 }
             except json.JSONDecodeError:
@@ -89,7 +92,9 @@ def aggregate_character_info(
                 entry = {
                     "character_json": char_json,
                     "character_name": char_data.get("name", ""),
-                    "personality_keywords": kw_data.get("keywords", []),
+                    "personality_keywords": kw_data.get(
+                        "personality_keywords", {"English": []}
+                    ),
                     "gender": gender,
                     "animeography": char_data.get("animeography", []),
                 }

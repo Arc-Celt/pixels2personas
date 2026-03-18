@@ -18,7 +18,6 @@ import json
 import warnings
 from pathlib import Path
 from typing import Iterable, Tuple
-
 import numpy as np
 import pandas as pd
 from umap import UMAP

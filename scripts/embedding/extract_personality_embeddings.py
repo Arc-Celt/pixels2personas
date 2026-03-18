@@ -80,9 +80,19 @@ def extract_personality_embeddings(
 
             try:
                 data = json.loads(line)
-                english_keywords = data.get("personality_keywords", {}).get(
-                    "English", []
-                )
+                kw_obj = data.get("personality_keywords")
+                if isinstance(kw_obj, dict):
+                    english_keywords = kw_obj.get("English") or kw_obj.get(
+                        "english", []
+                    )
+                elif isinstance(kw_obj, list):
+                    english_keywords = kw_obj
+                else:
+                    english_keywords = []
+
+                english_keywords = [
+                    str(k).strip() for k in english_keywords if str(k).strip()
+                ]
 
                 if not english_keywords:
                     skipped_count += 1

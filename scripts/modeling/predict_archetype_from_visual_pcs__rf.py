@@ -1,8 +1,6 @@
 """
 Random Forest community classifier on PCA visual features for interpretability
 for the 8-class personality communities.
-
-This script:
 - merges a community CSV (with `character_json`, `community`) and a visual PCs CSV
   (with `character_json`, `pca_1..pca_N`)
 - performs a single 70/10/20 stratified split
@@ -24,7 +22,7 @@ import argparse
 import json
 import logging
 from pathlib import Path
-
+from typing import Iterable
 import joblib
 import matplotlib.pyplot as plt
 import numpy as np
@@ -179,13 +177,12 @@ def build_arg_parser() -> argparse.ArgumentParser:
     return parser
 
 
-def main() -> None:
+def main(argv: Iterable[str] | None = None) -> None:
     parser = build_arg_parser()
-    args = parser.parse_args()
+    args = parser.parse_args(list(argv) if argv is not None else None)
 
-    rng = np.random.RandomState(args.seed)
-    out_dir = args.output - dir / "pc_community_rf"
-    out_dir.mkdir(parents=True, exist_ok=True)
+    output_dir = args.output_dir / "pc_community_rf"
+    output_dir.mkdir(parents=True, exist_ok=True)
 
     df, pc_cols = load_data(args.community_csv, args.visual_pcs_csv)
     X_all = df[pc_cols]
@@ -225,11 +222,11 @@ def main() -> None:
         if not pcs_list:
             pcs_list = [min(20, X_all.shape[1])]
 
-    results = []
-    pc100_test_metrics = None
+    all_results = []
+    best_candidate = None
 
     for n in pcs_list:
-        logger.info("Training RandomForest (PCs=%d)…", n)
+        logger.info("Using PCs=%d", n)
         X_train_pc = X_train.iloc[:, :n].to_numpy(dtype=np.float32)
         X_val_pc = X_val.iloc[:, :n].to_numpy(dtype=np.float32)
         X_test_pc = X_test.iloc[:, :n].to_numpy(dtype=np.float32)
@@ -243,33 +240,60 @@ def main() -> None:
             class_weight="balanced",
         )
         rf.fit(X_train_pc, y_train)
-        y_pred = rf.predict(X_test_pc)
-        metrics = evaluate(y_test, y_pred)
+        val_pred = rf.predict(X_val_pc)
+        val_metrics = evaluate(y_val, val_pred)
+        test_pred = rf.predict(X_test_pc)
+        test_metrics = evaluate(y_test, test_pred)
+        logger.info(
+            (
+                "PCs=%d | Val Acc: %.4f, Val Weighted F1: %.4f | "
+                "Test Acc: %.4f, Test Weighted F1: %.4f"
+            ),
+            n,
+            val_metrics["accuracy"],
+            val_metrics["f1_weighted"],
+            test_metrics["accuracy"],
+            test_metrics["f1_weighted"],
+        )
 
-        if n == 100:
-            pc100_test_metrics = metrics
+        if (
+            best_candidate is None
+            or val_metrics["f1_weighted"] > best_candidate["val_metrics"]["f1_weighted"]
+        ):
+            best_candidate = {
+                "pcs": n,
+                "model": rf,
+                "pc_columns": pc_cols[:n],
+                "val_metrics": val_metrics,
+                "test_metrics": test_metrics,
+            }
 
-        results.append(
+        all_results.append(
             {
                 "pcs": n,
-                "accuracy": float(metrics["accuracy"]),
-                "precision": float(metrics["precision"]),
-                "recall": float(metrics["recall"]),
-                "f1_macro": float(metrics["f1_macro"]),
-                "f1_weighted": float(metrics["f1_weighted"]),
+                "val_accuracy": float(val_metrics["accuracy"]),
+                "val_precision": float(val_metrics["precision"]),
+                "val_recall": float(val_metrics["recall"]),
+                "val_f1_macro": float(val_metrics["f1_macro"]),
+                "val_f1_weighted": float(val_metrics["f1_weighted"]),
+                "test_accuracy": float(test_metrics["accuracy"]),
+                "test_precision": float(test_metrics["precision"]),
+                "test_recall": float(test_metrics["recall"]),
+                "test_f1_macro": float(test_metrics["f1_macro"]),
+                "test_f1_weighted": float(test_metrics["f1_weighted"]),
             }
         )
 
         joblib.dump(
             {"model": rf, "pc_columns": pc_cols[:n], "model_name": "random_forest"},
-            out_dir / f"rf_pc{n}_model.joblib",
+            output_dir / f"rf_pc{n}_model.joblib",
         )
 
         importances = rf.feature_importances_
         feat_names = pc_cols[:n]
         imp_df = pd.DataFrame({"feature": feat_names, "importance": importances})
         imp_df.sort_values("importance", ascending=False).to_csv(
-            out_dir / f"rf_pc{n}_importances.csv", index=False
+            output_dir / f"rf_pc{n}_importances.csv", index=False
         )
 
         if args.enable_shap:
@@ -303,7 +327,7 @@ def main() -> None:
             shap_df = pd.DataFrame(
                 {"feature": feat_names, "mean_abs_shap": mean_abs}
             ).sort_values("mean_abs_shap", ascending=False)
-            shap_csv_path = out_dir / f"rf_pc{n}_shap_mean_abs.csv"
+            shap_csv_path = output_dir / f"rf_pc{n}_shap_mean_abs.csv"
             shap_df.to_csv(shap_csv_path, index=False)
             logger.info("Saved SHAP mean |value| per PC: %s", shap_csv_path)
 
@@ -319,32 +343,44 @@ def main() -> None:
             plt.ylabel("PC feature")
             plt.title(f"RF SHAP Top-{topk} (PCs={n})")
             plt.tight_layout()
-            shap_plot_path = out_dir / f"rf_pc{n}_shap_top{topk}_bar.pdf"
+            shap_plot_path = output_dir / f"rf_pc{n}_shap_top{topk}_bar.pdf"
             plt.savefig(shap_plot_path, dpi=300, bbox_inches="tight")
             plt.close()
             logger.info("Saved SHAP bar plot: %s", shap_plot_path)
 
-    res_df = pd.DataFrame(results).sort_values("pcs")
-    res_df.to_csv(out_dir / "rf_results.csv", index=False)
-    logger.info("Saved RF results: %s", out_dir / "rf_results.csv")
+    results_df = pd.DataFrame(all_results).sort_values("pcs")
+    results_path = output_dir / "rf_results.csv"
+    results_df.to_csv(results_path, index=False)
+    logger.info("Saved RF results: %s", results_path)
 
-    if pc100_test_metrics is not None:
+    if best_candidate is not None:
         results_json = {
             "task": "pc_community_classification",
             "selected_model": "random_forest",
-            "selected_num_pcs": 100,
+            "selection_metric": "val_f1_weighted",
+            "selected_num_pcs": best_candidate["pcs"],
             "dataset_sizes": {
                 "train": len(X_train),
                 "val": len(X_val),
                 "test": len(X_test),
             },
-            "test_metrics": pc100_test_metrics,
+            "val_metrics": best_candidate["val_metrics"],
+            "test_metrics": best_candidate["test_metrics"],
         }
 
-        results_json_path = out_dir / "results.json"
+        results_json_path = output_dir / "results.json"
         with results_json_path.open("w") as f:
             json.dump(convert_numpy(results_json), f, indent=2)
         logger.info("Saved results.json: %s", results_json_path)
+        logger.info("Selected PCs: %d", best_candidate["pcs"])
+        logger.info(
+            "Selected Val Weighted F1: %.4f",
+            best_candidate["val_metrics"]["f1_weighted"],
+        )
+        logger.info(
+            "Selected Test Weighted F1: %.4f",
+            best_candidate["test_metrics"]["f1_weighted"],
+        )
 
 
 if __name__ == "__main__":

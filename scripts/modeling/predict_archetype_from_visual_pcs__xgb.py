@@ -1,8 +1,6 @@
 """
 Train a community classifier using PCA visual features (PCs) as predictors with XGBoost
 for the 8-class personality communities.
-
-The script:
 - merges a community CSV (with `character_json`, `community`) and a visual PCs CSV
   (with `character_json`, `pca_1`..`pca_N`)
 - performs a stratified 70/10/20 train/val/test split

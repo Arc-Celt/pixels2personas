@@ -172,7 +172,6 @@ def annotate_characters(
     all_files = sorted(char_bio_dir.glob("*.json"))
     files = [f for f in all_files if f.name not in processed_chars]
 
-    # Optional: override chunking from environment if present (kept for SLURM compatibility)
     env_chunk_count = os.getenv("SLURM_ARRAY_TASK_COUNT") or os.getenv("CHUNK_COUNT")
     env_chunk_id = os.getenv("SLURM_ARRAY_TASK_ID") or os.getenv("CHUNK_ID")
     if env_chunk_count is not None:
@@ -297,7 +296,6 @@ def annotate_characters(
             "[{elapsed}<{remaining}, {rate_fmt}]",
         )
 
-        # Update progress bar for empty bio results
         pbar.update(len(empty_bio_results))
 
         for batch_idx in range(num_batches):
@@ -306,10 +304,8 @@ def annotate_characters(
             batch_prompts = prompts[start_idx:end_idx]
             batch_files = file_list[start_idx:end_idx]
 
-            # Run inference
             outputs = llm.generate(batch_prompts, sampling_params)
 
-            # Process results
             for output, char_file in zip(outputs, batch_files):
                 try:
                     response_text = output.outputs[0].text
@@ -322,7 +318,6 @@ def annotate_characters(
                     pbar.update(1)
                     tqdm.write(f"[ERROR] Failed on {char_file.name}: {e}")
 
-            # Flush periodically
             if (processed + failed) % 100 == 0:
                 out_f.flush()
                 elapsed = time.time() - start_time

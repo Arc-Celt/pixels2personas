@@ -1,7 +1,5 @@
 """
 Evaluate a frozen DINOv2 backbone for period classification as a baseline.
-
-This script:
 - loads a period classification dataset arranged as {split}/{period}/*.jpg
 - builds a DINOv2 backbone with a randomly initialized classification head
   (backbone is frozen)
