@@ -25,6 +25,7 @@ The code is organized into modular scripts for each stage of the research pipeli
 ```text
 ├── scripts/
     ├── data_collection/                             <- Data scraping and parsing
+    │   ├── avatar_tagging.py
     │   ├── crawl_char_ind.py
     │   ├── crawl_characters.py
     │   ├── crawl_high_res_image.py

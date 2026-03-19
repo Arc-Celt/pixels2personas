@@ -1,3 +1,4 @@
+imgutils
 beautifulsoup4
 igraph
 joblib
