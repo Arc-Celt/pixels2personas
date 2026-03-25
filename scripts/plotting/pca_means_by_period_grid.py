@@ -82,15 +82,22 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
     pcs_dash = [2, 4, 6]
     roles = ["Main", "Supporting"]
 
-    axis_label_size = 26
-    tick_label_size = 18
-    legend_title_size = 22
-    legend_label_size = 20
+    axis_label_size = 34
+    tick_label_size = 28
+    legend_title_size = 32
+    legend_label_size = 30
     fontweight = "bold"
 
     color_palette = sns.color_palette("tab10", 7)
 
-    fig, axes = plt.subplots(4, 2, figsize=(14, 10), sharex=True, sharey=True)
+    fig, axes = plt.subplots(
+        4,
+        2,
+        figsize=(13, 14),
+        sharex=True,
+        sharey=True,
+        gridspec_kw={"wspace": 0.05, "hspace": 0.12},
+    )
     for row, pc in enumerate(pcs_main):
         for col, role in enumerate(roles):
             ax = axes[row, col]
@@ -197,12 +204,16 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
                     handles=legend_handles,
                     labels=legend_labels,
                     loc="upper left",
-                    bbox_to_anchor=(1.02, 1.0),
+                    bbox_to_anchor=(0.99, 1.0),
                     fontsize=legend_label_size,
                     title="PC",
                     title_fontsize=legend_title_size,
                     ncol=1,
                     frameon=True,
+                    handlelength=0.9,
+                    handletextpad=0.4,
+                    borderpad=0.3,
+                    labelspacing=0.3,
                 )
             else:
                 leg = ax.get_legend()
@@ -211,19 +222,18 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
 
     for col, role in enumerate(roles):
         axes[0, col].set_title(
-            role, fontsize=legend_title_size, fontweight=fontweight, pad=20
+            role, fontsize=legend_title_size, fontweight=fontweight, pad=8
         )
 
     fig.supxlabel(
-        "Period", fontsize=axis_label_size, fontweight=fontweight, x=0.48, y=0.02
+        "Period", fontsize=axis_label_size, fontweight=fontweight, x=0.45, y=0.005
     )
     fig.supylabel(
-        "Mean PC Value", fontsize=axis_label_size, fontweight=fontweight, x=0.02, y=0.55
+        "Mean PC Value", fontsize=axis_label_size, fontweight=fontweight, x=0.01, y=0.55
     )
 
     out_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.tight_layout(h_pad=0.01, w_pad=1.2, rect=[0, 0, 0.99, 1])
-    fig.subplots_adjust(hspace=0.01)
+    fig.subplots_adjust(left=0.12, right=0.86, bottom=0.17, top=0.96)
     fig.savefig(out_file, dpi=300)
     plt.close(fig)
 

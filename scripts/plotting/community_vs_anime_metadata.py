@@ -1,47 +1,24 @@
 """
-Community (archetype) distributions across anime metadata and gender.
-
-Input:
-- Communities CSV with `character_json` and `community`
-- Character info JSONL (for animeography and gender)
-- Anime info CSV with at least `anime_json`, plus `rating` and `source` columns
-
-Output:
-- gender_share_by_prototype_percentage.pdf
-- rating_pairgrid_dotplot_by_prototype.pdf
-- source_pairgrid_dotplot_by_prototype.pdf
-
-Example:
-
-python scripts/plotting/community_vs_anime_metadata.py \
-  --communities-csv /path/to/personality_communities_umap.csv \
-  --character-info-jsonl /path/to/character_info_agg.jsonl \
-  --anime-info-csv /path/to/anime_info_agg.csv \
-  --output-dir /path/to/output_dir
+Community distribution across anime metadata (rating/source) and character gender.
 """
 
 from __future__ import annotations
+
 import argparse
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional
+
 import matplotlib.pyplot as plt
-import numpy as np
 import pandas as pd
 import seaborn as sns
 
 sns.set_theme(style="whitegrid", palette="colorblind")
 
-
-COMMUNITY_LABELS: Dict[int, str] = {
-    0: "Energetic Extroverts",
-    1: "Steadfast Leaders",
-    2: "Cold-hearted Antagonists",
-    3: "Passionate Strivers",
-    4: "Kind Caregivers",
-    5: "Justice Keepers",
-    6: "Reserved Introverts",
-    7: "Arrogant Tsunderes",
-}
+AXIS_LABEL_SIZE = 36
+TICK_LABEL_SIZE = 32
+LEGEND_TITLE_SIZE = 34
+LEGEND_LABEL_SIZE = 32
+FONTWEIGHT = "bold"
 
 LEGEND_LABELS: Dict[int, str] = {
     0: "Energetic\nExtroverts",
@@ -54,7 +31,7 @@ LEGEND_LABELS: Dict[int, str] = {
     7: "Arrogant\nTsunderes",
 }
 
-SOURCE_TOP10 = [
+SOURCE_TOP10: List[str] = [
     "Original",
     "Manga",
     "Visual novel",
@@ -92,323 +69,201 @@ def group_source(src: Optional[str]) -> str:
 
 def derive_character_to_anime(character_info_jsonl: Path) -> pd.DataFrame:
     df_info = pd.read_json(character_info_jsonl, lines=True)
-    if "character_json" not in df_info.columns:
-        raise ValueError("character info JSONL missing 'character_json' column")
-
     rows: List[Dict] = []
     for _, row in df_info.iterrows():
         cj = row.get("character_json")
         ao = row.get("animeography")
-        if isinstance(ao, list):
-            for entry in ao:
-                if not isinstance(entry, dict):
-                    continue
-                anime_json = (
-                    entry.get("anime_json")
+        if not isinstance(ao, list):
+            continue
+        for entry in ao:
+            if not isinstance(entry, dict):
+                continue
+            rows.append(
+                {
+                    "character_json": cj,
+                    "anime_json": entry.get("anime_json")
                     or entry.get("anime")
-                    or entry.get("anime_file")
-                )
-                role = entry.get("role")
-                rows.append(
-                    {"character_json": cj, "anime_json": anime_json, "role": role}
-                )
-
+                    or entry.get("anime_file"),
+                    "role": entry.get("role"),
+                }
+            )
     map_df = pd.DataFrame(rows)
     if map_df.empty:
-        return pd.DataFrame(
-            columns=["character_json", "chosen_anime_json", "chosen_role"]
-        )
-
-    def choose_one(grp: pd.DataFrame) -> pd.Series:
-        grp = grp.copy()
-        grp["role_l"] = grp["role"].astype(str).str.lower()
-        mains = grp[grp["role_l"] == "main"]
-        chosen = mains.iloc[0] if len(mains) > 0 else grp.iloc[0]
-        return pd.Series(
-            {
-                "chosen_anime_json": chosen.get("anime_json"),
-                "chosen_role": chosen.get("role"),
-            }
-        )
-
-    chosen_map = map_df.groupby("character_json", as_index=False).apply(choose_one)
-    if "character_json" not in chosen_map.columns:
-        chosen_map = chosen_map.reset_index().rename(
-            columns={"level_0": "character_json"}
-        )
-    return chosen_map[["character_json", "chosen_anime_json", "chosen_role"]]
+        return pd.DataFrame(columns=["character_json", "chosen_anime_json"])
+    map_df["is_main"] = map_df["role"].astype(str).str.lower().eq("main")
+    map_df = map_df.sort_values(["character_json", "is_main"], ascending=[True, False])
+    chosen = map_df.drop_duplicates("character_json", keep="first")
+    return chosen.rename(columns={"anime_json": "chosen_anime_json"})[
+        ["character_json", "chosen_anime_json"]
+    ]
 
 
-def stacked_percentage_bars_archetypes(
-    pivot: pd.DataFrame, out_file: Path, x_label: str, y_label: str
-) -> None:
-    distinct_colors = sns.color_palette("colorblind", 8)
-
-    fig, ax = plt.subplots(figsize=(18, 10), dpi=300)
+def stacked_percentage_bars_generic(pivot: pd.DataFrame, out_file: Path) -> None:
+    colors = sns.color_palette("colorblind", len(pivot.columns))
+    fig, ax = plt.subplots(figsize=(17, 9), dpi=300)
     bottom = pd.Series(0.0, index=pivot.index)
-    for community in range(8):
-        heights = (
-            pivot[community]
-            if community in pivot.columns
-            else pd.Series(0.0, index=pivot.index)
-        )
-        ax.bar(
-            pivot.index,
-            heights,
-            bottom=bottom,
-            color=distinct_colors[community],
-            label=LEGEND_LABELS[community],
-            linewidth=0,
-        )
-        bottom = bottom + heights
-
-    ax.set_xlabel(x_label, fontsize=36, fontweight="bold")
-    ax.set_ylabel(y_label, fontsize=36, fontweight="bold")
-    ax.tick_params(axis="both", which="major", labelsize=32)
-    ax.tick_params(axis="x", rotation=0)
+    for i, col in enumerate(pivot.columns):
+        vals = pivot[col]
+        ax.bar(pivot.index, vals, bottom=bottom, color=colors[i], label=str(col), linewidth=0)
+        bottom = bottom + vals
+    ax.set_xlabel("Archetype", fontsize=AXIS_LABEL_SIZE, fontweight=FONTWEIGHT)
+    ax.set_ylabel("Percentage", fontsize=AXIS_LABEL_SIZE, fontweight=FONTWEIGHT)
+    ax.tick_params(axis="both", which="major", labelsize=TICK_LABEL_SIZE)
+    ax.tick_params(axis="x", rotation=45, labelsize=TICK_LABEL_SIZE)
     ax.grid(axis="y", alpha=0.3)
-    ax.set_facecolor("white")
-    ax.legend(
-        title="Archetype",
-        title_fontsize=34,
-        fontsize=32,
-        loc="upper left",
-        bbox_to_anchor=(1.02, 1.0),
-        frameon=True,
-        ncol=1,
-        columnspacing=1.0,
-        labelspacing=0.5,
-    )
-    fig.tight_layout()
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    fig.savefig(out_file, bbox_inches="tight")
-    plt.close(fig)
-
-
-def pairgrid_dotplot_by_prototype(
-    df: pd.DataFrame,
-    feature_col: str,
-    out_file: Path,
-    title: str,
-) -> None:
-    """
-    Dot-plot style: for each archetype, show feature distribution as proportions.
-
-    This mirrors the “pairgrid dotplot” style used in the revised plotting script.
-    """
-    # Crosstab: community x feature -> proportions
-    tab = pd.crosstab(df["community"], df[feature_col], normalize="index") * 100.0
-    tab = tab.reindex(index=sorted(COMMUNITY_LABELS.keys()))
-
-    long = (
-        tab.reset_index()
-        .melt(id_vars=["community"], var_name=feature_col, value_name="percentage")
-        .dropna()
-    )
-    long["archetype"] = long["community"].map(COMMUNITY_LABELS)
-
-    fig, ax = plt.subplots(figsize=(18, 8), dpi=300)
-    sns.scatterplot(
-        data=long,
-        x=feature_col,
-        y="archetype",
-        size="percentage",
-        hue="archetype",
-        sizes=(10, 800),
-        alpha=0.8,
-        palette="colorblind",
-        legend=False,
-        ax=ax,
-    )
-    ax.set_title(title, fontsize=38, fontweight="bold")
-    ax.set_xlabel(feature_col.replace("_", " ").title(), fontsize=36, fontweight="bold")
-    ax.set_ylabel("Archetype", fontsize=36, fontweight="bold")
-    ax.tick_params(axis="both", which="major", labelsize=28)
-    ax.grid(alpha=0.2)
-    fig.tight_layout()
-    out_file.parent.mkdir(parents=True, exist_ok=True)
-    plt.savefig(out_file, bbox_inches="tight")
-    plt.close(fig)
-
-
-def build_joined_table(
-    communities_csv: Path,
-    character_info_jsonl: Path,
-    anime_info_csv: Path,
-) -> pd.DataFrame:
-    comm_df = pd.read_csv(communities_csv)
-    if "character_json" not in comm_df.columns or "community" not in comm_df.columns:
-        raise ValueError(
-            "communities CSV must include 'character_json' and 'community'"
-        )
-
-    info_df = pd.read_json(character_info_jsonl, lines=True)
-    if "character_json" not in info_df.columns:
-        raise ValueError("character info JSONL missing 'character_json'")
-
-    anime_df = pd.read_csv(anime_info_csv)
-    if "anime_json" not in anime_df.columns:
-        raise ValueError("anime info CSV missing 'anime_json'")
-
-    char_to_anime = derive_character_to_anime(character_info_jsonl)
-    merged = comm_df.merge(char_to_anime, on="character_json", how="left")
-
-    merged = merged.merge(
-        (
-            info_df[["character_json", "gender"]].copy()
-            if "gender" in info_df.columns
-            else info_df[["character_json"]].copy()
-        ),
-        on="character_json",
-        how="left",
-    )
-
-    merged = merged.merge(
-        anime_df,
-        left_on="chosen_anime_json",
-        right_on="anime_json",
-        how="left",
-        suffixes=("", "_anime"),
-    )
-
-    if "rating" in merged.columns:
-        merged["rating_norm"] = merged["rating"].apply(normalize_rating)
-    if "source" in merged.columns:
-        merged["source_grouped"] = merged["source"].apply(group_source)
-
-    if "gender" in merged.columns:
-        g = merged["gender"].astype(str).str.upper()
-        merged["gender_norm"] = g.where(g.isin(["M", "F"]), "Unknown")
-
-    merged["community"] = pd.to_numeric(merged["community"], errors="coerce")
-    merged = merged.dropna(subset=["community"]).copy()
-    merged["community"] = merged["community"].astype(int)
-    merged = merged[merged["community"].isin(set(COMMUNITY_LABELS.keys()))].copy()
-    return merged
-
-
-def make_gender_share_plot(df: pd.DataFrame, out_file: Path) -> None:
-    if "gender_norm" not in df.columns:
-        raise ValueError(
-            "gender column missing (expected 'gender' in character info JSONL)."
-        )
-
-    tab = pd.crosstab(df["community"], df["gender_norm"], normalize="index") * 100.0
-    tab = tab.reindex(index=sorted(COMMUNITY_LABELS.keys()))
-    tab = tab.reindex(columns=["M", "F", "Unknown"], fill_value=0.0)
-
-    # Plot as stacked bars by archetype (x) with gender stacks
-    fig, ax = plt.subplots(figsize=(18, 10), dpi=300)
-    colors = sns.color_palette("colorblind", len(tab.columns))
-    bottom = np.zeros(len(tab.index), dtype=float)
-    x = np.arange(len(tab.index))
-    labels = [LEGEND_LABELS[i] for i in tab.index]
-
-    for i, col in enumerate(tab.columns):
-        vals = tab[col].to_numpy()
-        ax.bar(x, vals, bottom=bottom, color=colors[i], label=str(col), linewidth=0)
-        bottom += vals
-
-    ax.set_xticks(x)
-    ax.set_xticklabels(labels)
-    ax.set_xlabel("Archetype", fontsize=36, fontweight="bold")
-    ax.set_ylabel("Percentage (%)", fontsize=36, fontweight="bold")
-    ax.tick_params(axis="both", which="major", labelsize=32)
-    ax.grid(axis="y", alpha=0.3)
-    ax.set_facecolor("white")
+    ax.axhline(50, ls="--", color="black", lw=2, alpha=0.7)
+    xlim = ax.get_xlim()
+    ax.text(xlim[1] * 1.01, 50, "50%", fontsize=LEGEND_TITLE_SIZE, ha="left", va="center")
     ax.legend(
         title="Gender",
-        title_fontsize=34,
-        fontsize=32,
+        title_fontsize=LEGEND_TITLE_SIZE,
+        fontsize=LEGEND_LABEL_SIZE,
         loc="upper left",
-        bbox_to_anchor=(1.02, 1.0),
+        bbox_to_anchor=(0.99, 1.0),
         frameon=True,
-        ncol=1,
+        handlelength=0.9,
+        handletextpad=0.4,
+        borderpad=0.3,
+        labelspacing=0.3,
     )
-
     fig.tight_layout()
     out_file.parent.mkdir(parents=True, exist_ok=True)
     fig.savefig(out_file, bbox_inches="tight")
     plt.close(fig)
+
+
+def pairgrid_dotplot(
+    data: pd.DataFrame, group_col: str, group_order: List[str], out_file: Path, n_rows: int, n_cols: int, bottom_margin: float
+) -> None:
+    proto_order = [lbl.replace("\n", " ") for lbl in LEGEND_LABELS.values()][::-1]
+    plot_data = data.copy()
+    plot_data["Prototype"] = plot_data["community_label"].str.replace("\n", " ")
+    fig, axes = plt.subplots(nrows=n_rows, ncols=n_cols, figsize=(n_cols * 6.5, n_rows * 6), sharey=True)
+    axes = axes.flatten()
+    for i, group in enumerate(group_order):
+        ax = axes[i]
+        facet = plot_data[plot_data[group_col] == group]
+        y_data = []
+        for p in proto_order:
+            vals = facet.loc[facet["Prototype"] == p, "prop"]
+            y_data.append(float(vals.iloc[0]) if not vals.empty else 0.0)
+        ax.scatter(y_data, proto_order, color=sns.color_palette("colorblind", 1)[0], s=180, edgecolor="w", linewidth=1)
+        ax.set_xlim(0, 100)
+        if i % n_cols == 0:
+            ax.set_ylabel("Archetype", fontsize=AXIS_LABEL_SIZE, fontweight=FONTWEIGHT)
+        else:
+            ax.set_ylabel("")
+        ax.set_title(group.replace("\n", " "), fontsize=LEGEND_TITLE_SIZE, fontweight=FONTWEIGHT)
+        ax.tick_params(axis="x", labelsize=TICK_LABEL_SIZE)
+        ax.tick_params(axis="y", labelsize=TICK_LABEL_SIZE)
+        ax.xaxis.grid(False)
+        ax.yaxis.grid(True)
+        ax.set_yticks(proto_order)
+    for j in range(len(group_order), len(axes)):
+        axes[j].set_visible(False)
+    plt.tight_layout()
+    fig.subplots_adjust(bottom=bottom_margin)
+    fig.supxlabel("Percentage", fontsize=AXIS_LABEL_SIZE, fontweight=FONTWEIGHT)
+    out_file.parent.mkdir(parents=True, exist_ok=True)
+    plt.savefig(out_file, bbox_inches="tight")
+    plt.close()
+
+
+def build_inputs(communities_csv: Path, character_info_jsonl: Path, anime_meta_jsonl: Path) -> tuple[pd.DataFrame, pd.DataFrame]:
+    df_char = pd.read_csv(communities_csv)
+    df_char = df_char[df_char["community"].isin(set(range(8)))].copy()
+    df_info = pd.read_json(character_info_jsonl, lines=True)
+    if "gender" not in df_char.columns and "gender" in df_info.columns:
+        df_char = df_char.merge(df_info[["character_json", "gender"]], on="character_json", how="left")
+    df_char["gender_norm"] = df_char.get("gender", pd.Series(index=df_char.index)).astype(str).str.upper().map({"M": "Male", "F": "Female"}).fillna("Unknown")
+    char2anime = derive_character_to_anime(character_info_jsonl)
+    df_anime = pd.read_json(anime_meta_jsonl, lines=True)
+    df_anime["rating_norm"] = df_anime["rating"].apply(normalize_rating)
+    df_anime["source_grouped"] = df_anime["source"].apply(group_source)
+    df_join = df_char.merge(char2anime, on="character_json", how="left")
+    df_join = df_join.merge(df_anime[["anime_json", "rating_norm", "source_grouped"]], left_on="chosen_anime_json", right_on="anime_json", how="left")
+    return df_char, df_join
 
 
 def build_arg_parser() -> argparse.ArgumentParser:
-    p = argparse.ArgumentParser(
-        description="Plot archetype distributions across rating/source and gender."
-    )
+    p = argparse.ArgumentParser(description="Plot community vs anime metadata.")
     p.add_argument("--communities-csv", type=Path, required=True)
     p.add_argument("--character-info-jsonl", type=Path, required=True)
-    p.add_argument("--anime-info-csv", type=Path, required=True)
+    p.add_argument("--anime-meta-jsonl", type=Path, required=True)
     p.add_argument("--output-dir", type=Path, required=True)
-    p.add_argument("--make-gender", action="store_true", help="Generate gender plot.")
-    p.add_argument(
-        "--make-rating", action="store_true", help="Generate rating dotplot."
-    )
-    p.add_argument(
-        "--make-source", action="store_true", help="Generate source dotplot."
-    )
+    p.add_argument("--make-gender", action="store_true")
+    p.add_argument("--make-rating", action="store_true")
+    p.add_argument("--make-source", action="store_true")
     return p
 
 
 def main(argv: Iterable[str] | None = None) -> None:
     args = build_arg_parser().parse_args(list(argv) if argv is not None else None)
+    df_char, df_join = build_inputs(args.communities_csv, args.character_info_jsonl, args.anime_meta_jsonl)
+    do_gender = args.make_gender
+    do_rating = args.make_rating
+    do_source = args.make_source
+    if not (do_gender or do_rating or do_source):
+        do_gender = do_rating = do_source = True
 
-    df = build_joined_table(
-        communities_csv=args.communities_csv,
-        character_info_jsonl=args.character_info_jsonl,
-        anime_info_csv=args.anime_info_csv,
-    )
+    out = args.output_dir
+    out.mkdir(parents=True, exist_ok=True)
 
-    # Default: generate all three if none specified
-    if not (args.make_gender or args.make_rating or args.make_source):
-        make_gender = make_rating = make_source = True
-    else:
-        make_gender, make_rating, make_source = (
-            args.make_gender,
-            args.make_rating,
-            args.make_source,
-        )
+    if do_gender:
+        df_g = df_char[df_char["gender_norm"].isin(["Male", "Female"])].copy()
+        g = df_g.groupby(["community", "gender_norm"]).size().reset_index(name="count")
+        g["total"] = g.groupby("community")["count"].transform("sum")
+        g["prop"] = g["count"] / g["total"] * 100.0
+        pivot = g.pivot(index="community", columns="gender_norm", values="prop").fillna(0.0)
+        pivot = pivot.reindex(index=list(range(8)))
+        pivot.index = [LEGEND_LABELS[i] for i in pivot.index]
+        p = out / "gender_share_by_prototype_percentage.pdf"
+        stacked_percentage_bars_generic(pivot, p)
+        print(f"Saved: {p}")
 
-    out_dir: Path = args.output_dir
-    out_dir.mkdir(parents=True, exist_ok=True)
+    if do_rating:
+        def compact_rating(name: str) -> str:
+            if name.startswith("G "):
+                return "G"
+            if name.startswith("PG-13"):
+                return "PG-13"
+            if name.startswith("PG "):
+                return "PG"
+            if name.startswith("R+/Rx"):
+                return "R+/Rx"
+            if name.startswith("R "):
+                return "R"
+            return name
+        order_raw = ["G (All Ages)", "PG (Children)", "PG-13 (Teens 13 or older)", "R (17+ Violence & Profanity)", "R+/Rx (Mild Nudity and More)"]
+        order = [compact_rating(x) for x in order_raw]
+        d = df_join[df_join["rating_norm"].notna() & (df_join["rating_norm"] != "Unknown")].copy()
+        d["rating_compact"] = d["rating_norm"].map(compact_rating)
+        c = d.groupby(["rating_compact", "community"]).size().reset_index(name="count")
+        c["total"] = c.groupby("rating_compact")["count"].transform("sum")
+        c["prop"] = c["count"] / c["total"] * 100.0
+        c["community_label"] = c["community"].map(lambda x: LEGEND_LABELS[x].replace("\n", " "))
+        c = c[c["rating_compact"].isin(order)]
+        p = out / "rating_pairgrid_dotplot_by_prototype.pdf"
+        pairgrid_dotplot(c, "rating_compact", order, p, n_rows=3, n_cols=2, bottom_margin=0.1)
+        print(f"Saved: {p}")
 
-    if make_gender:
-        out_file = out_dir / "gender_share_by_prototype_percentage.pdf"
-        make_gender_share_plot(df, out_file=out_file)
-        print(f"Saved: {out_file}")
-
-    if make_rating:
-        if "rating_norm" not in df.columns:
-            raise ValueError(
-                "rating column missing in anime info CSV (expected 'rating')."
-            )
-        out_file = out_dir / "rating_pairgrid_dotplot_by_prototype.pdf"
-        pairgrid_dotplot_by_prototype(
-            df=df.dropna(subset=["rating_norm"]).rename(
-                columns={"rating_norm": "rating"}
-            ),
-            feature_col="rating",
-            out_file=out_file,
-            title="Rating distribution by archetype",
-        )
-        print(f"Saved: {out_file}")
-
-    if make_source:
-        if "source_grouped" not in df.columns:
-            raise ValueError(
-                "source column missing in anime info CSV (expected 'source')."
-            )
-        out_file = out_dir / "source_pairgrid_dotplot_by_prototype.pdf"
-        pairgrid_dotplot_by_prototype(
-            df=df.dropna(subset=["source_grouped"]).rename(
-                columns={"source_grouped": "source"}
-            ),
-            feature_col="source",
-            out_file=out_file,
-            title="Source distribution by archetype",
-        )
-        print(f"Saved: {out_file}")
+    if do_source:
+        def format_source(lbl: str) -> str:
+            t = str(lbl).title()
+            return t.replace(" ", "\n", 1) if " " in t else t
+        order = [format_source(s) for s in SOURCE_TOP10 if s != "Music"] + ["Other"]
+        d = df_join[df_join["source_grouped"].notna()].copy()
+        d["source_compact"] = d["source_grouped"].map(format_source).replace({"Music": "Other"})
+        c = d.groupby(["source_compact", "community"]).size().reset_index(name="count")
+        c["total"] = c.groupby("source_compact")["count"].transform("sum")
+        c["prop"] = c["count"] / c["total"] * 100.0
+        c["community_label"] = c["community"].map(lambda x: LEGEND_LABELS[x].replace("\n", " "))
+        c = c[c["source_compact"].isin(order)]
+        p = out / "source_pairgrid_dotplot_by_prototype.pdf"
+        pairgrid_dotplot(c, "source_compact", order, p, n_rows=5, n_cols=2, bottom_margin=0.05)
+        print(f"Saved: {p}")
 
 
 if __name__ == "__main__":
     main()
+

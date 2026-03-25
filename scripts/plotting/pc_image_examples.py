@@ -50,8 +50,8 @@ def create_combined_plot(
     dpi: int = 300,
     cell_size: Tuple[int, int] = (100, 120),
     figsize: Tuple[int, int] = (18, 40),
-    font_size: int = 22,
-    label_font_size: int = 26,
+    font_size: int = 40,
+    label_font_size: int = 44,
 ) -> None:
     n_pcs = len(pc_nums)
     fig, axes = plt.subplots(n_pcs * 2, 10, figsize=figsize, dpi=dpi)
@@ -111,8 +111,8 @@ def create_combined_plot(
         group_center_y = (
             top_bbox.y0 + top_bbox.height / 2 + bottom_bbox.y0 + bottom_bbox.height / 2
         ) / 2
-        pc_label_x = top_bbox.x0 - 0.02
-        top_bottom_label_x = top_bbox.x0 - 0.01
+        pc_label_x = top_bbox.x0 - 0.042
+        top_bottom_label_x = top_bbox.x0 - 0.016
 
         fig.text(
             pc_label_x,
@@ -130,7 +130,6 @@ def create_combined_plot(
             "Top",
             rotation=90,
             fontsize=font_size,
-            fontweight="bold",
             ha="center",
             va="center",
         )
@@ -140,7 +139,6 @@ def create_combined_plot(
             "Bottom",
             rotation=90,
             fontsize=font_size,
-            fontweight="bold",
             ha="center",
             va="center",
         )

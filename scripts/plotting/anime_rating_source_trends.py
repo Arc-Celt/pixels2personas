@@ -113,7 +113,7 @@ def plot_rating_proportion(df: pd.DataFrame, out_file: Path) -> None:
         year_labels.index(str(y)) for y in ten_years if str(y) in year_labels
     ]
 
-    plt.figure(figsize=(16, 8))
+    plt.figure(figsize=(16, 9))
     bottom = None
     for rating in RATING_ORDER:
         if rating not in pivot.columns:
@@ -127,18 +127,22 @@ def plot_rating_proportion(df: pd.DataFrame, out_file: Path) -> None:
         )
         bottom = pivot[rating].copy() if bottom is None else (bottom + pivot[rating])
 
-    plt.xlabel("Year", fontsize=24, fontweight="bold")
-    plt.ylabel("Proportion", fontsize=24, fontweight="bold")
+    plt.xlabel("Year", fontsize=34, fontweight="bold")
+    plt.ylabel("Proportion", fontsize=34, fontweight="bold")
     plt.legend(
         title="Rating",
-        title_fontsize=24,
-        fontsize=22,
+        title_fontsize=32,
+        fontsize=30,
         loc="upper center",
-        bbox_to_anchor=(0.5, -0.15),
-        ncol=3,
+        bbox_to_anchor=(0.5, -0.22),
+        ncol=2,
+        handlelength=0.9,
+        handletextpad=0.4,
+        borderpad=0.3,
+        labelspacing=0.3,
     )
-    plt.xticks(ticks=xtick_positions, labels=xtick_labels, fontsize=22, ha="center")
-    plt.yticks(fontsize=22)
+    plt.xticks(ticks=xtick_positions, labels=xtick_labels, fontsize=32, ha="center")
+    plt.yticks(fontsize=32)
     plt.tight_layout(rect=[0, 0.08, 1, 1])
     out_file.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_file, dpi=300, bbox_inches="tight")
@@ -178,7 +182,7 @@ def plot_source_proportion(df: pd.DataFrame, out_file: Path) -> None:
         year_labels.index(str(y)) for y in ten_years if str(y) in year_labels
     ]
 
-    plt.figure(figsize=(16, 8))
+    plt.figure(figsize=(16, 11))
     bottom = None
     for src in source_order:
         if src not in pivot.columns:
@@ -188,18 +192,22 @@ def plot_source_proportion(df: pd.DataFrame, out_file: Path) -> None:
         )
         bottom = pivot[src].copy() if bottom is None else (bottom + pivot[src])
 
-    plt.xlabel("Year", fontsize=24, fontweight="bold")
-    plt.ylabel("Proportion", fontsize=24, fontweight="bold")
+    plt.xlabel("Year", fontsize=34, fontweight="bold")
+    plt.ylabel("Proportion", fontsize=34, fontweight="bold")
     plt.legend(
         title="Source",
-        title_fontsize=24,
-        fontsize=22,
+        title_fontsize=32,
+        fontsize=30,
         loc="upper center",
         bbox_to_anchor=(0.5, -0.15),
-        ncol=5,
+        ncol=4,
+        handlelength=0.9,
+        handletextpad=0.4,
+        borderpad=0.3,
+        labelspacing=0.3,
     )
-    plt.xticks(ticks=xtick_positions, labels=xtick_labels, fontsize=22, ha="center")
-    plt.yticks(fontsize=22)
+    plt.xticks(ticks=xtick_positions, labels=xtick_labels, fontsize=32, ha="center")
+    plt.yticks(fontsize=32)
     plt.tight_layout(rect=[0, 0.08, 1, 1])
     out_file.parent.mkdir(parents=True, exist_ok=True)
     plt.savefig(out_file, dpi=300, bbox_inches="tight")
