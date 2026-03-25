@@ -1,5 +1,23 @@
 """
 Community distribution across anime metadata (rating/source) and character gender.
+
+Input:
+- Communities CSV with `character_json` and `community`
+- Character info JSONL with `character_json`, `animeography`, and optional `gender`
+- Anime metadata JSONL with `anime_json`, `rating`, and `source`
+
+Output:
+- gender_share_by_prototype_percentage.pdf
+- rating_pairgrid_dotplot_by_prototype.pdf
+- source_pairgrid_dotplot_by_prototype.pdf
+
+Example:
+
+python scripts/plotting/community_vs_anime_metadata.py \
+  --communities-csv /path/to/personality_communities_umap.csv \
+  --character-info-jsonl /path/to/character_info_agg_with_favorites_gender_updated.jsonl \
+  --anime-meta-jsonl /path/to/anime_normalized_dates_with_source.jsonl \
+  --output-dir /path/to/output_dir
 """
 
 from __future__ import annotations

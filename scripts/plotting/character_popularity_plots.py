@@ -21,6 +21,7 @@ import argparse
 from pathlib import Path
 from typing import Iterable
 import matplotlib.pyplot as plt
+from matplotlib.lines import Line2D
 import numpy as np
 import pandas as pd
 import seaborn as sns
@@ -109,6 +110,7 @@ def plot_log_scaled_popularity_violin(df: pd.DataFrame, out_file: Path) -> None:
 
     parts["cmedians"].set_color("blue")
     parts["cmedians"].set_linewidth(2)
+    parts["cmedians"].set_linestyle("--")
     parts["cmedians"].set_label("Median")
 
     for partname in ("cbars", "cmins", "cmaxes"):
@@ -127,8 +129,12 @@ def plot_log_scaled_popularity_violin(df: pd.DataFrame, out_file: Path) -> None:
 
     ax.tick_params(axis="both", which="major", labelsize=tick_label_size)
     ax.grid(True, alpha=0.3, axis="y", which="both")
+    legend_handles = [
+        Line2D([0], [0], color="red", linewidth=2, linestyle="-"),
+        Line2D([0], [0], color="blue", linewidth=2, linestyle="--"),
+    ]
     ax.legend(
-        [parts["cmeans"], parts["cmedians"]],
+        legend_handles,
         ["Mean", "Median"],
         loc="upper left",
         bbox_to_anchor=(0.925, 0.93),

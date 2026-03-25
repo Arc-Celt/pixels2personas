@@ -89,6 +89,7 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
     fontweight = "bold"
 
     color_palette = sns.color_palette("tab10", 7)
+    main_markers = {1: "o", 3: "s", 5: "^", 7: "D"}
 
     fig, axes = plt.subplots(
         4,
@@ -122,7 +123,8 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
             ax.plot(
                 PERIOD_ORDER,
                 means.values,
-                marker="o",
+                marker=main_markers.get(pc, "o"),
+                markersize=8,
                 label=f"PC{pc}",
                 color=color_palette[pc - 1],
                 linewidth=3.5,
@@ -145,6 +147,8 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
                         color=color_palette[0],
                         linestyle="-",
                         linewidth=3.5,
+                        marker=main_markers[1],
+                        markersize=8,
                         label="PC1",
                     ),
                     Line2D(
@@ -162,6 +166,8 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
                         color=color_palette[2],
                         linestyle="-",
                         linewidth=3.5,
+                        marker=main_markers[3],
+                        markersize=8,
                         label="PC3",
                     ),
                     Line2D(
@@ -179,6 +185,8 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
                         color=color_palette[4],
                         linestyle="-",
                         linewidth=3.5,
+                        marker=main_markers[5],
+                        markersize=8,
                         label="PC5",
                     ),
                     Line2D(
@@ -196,6 +204,8 @@ def plot_pca_means_by_period_grid(df: pd.DataFrame, out_file: Path) -> None:
                         color=color_palette[6],
                         linestyle="-",
                         linewidth=3.5,
+                        marker=main_markers[7],
+                        markersize=8,
                         label="PC7",
                     ),
                 ]

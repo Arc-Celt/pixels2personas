@@ -138,8 +138,8 @@ def plot_time_trend(df: pd.DataFrame, out_file: Path, cutoff_year: int) -> None:
 
     plt.figure(figsize=(14, 6))
     x = np.arange(len(trend["period"]))
-    for col in ["Main", "Supporting"]:
-        plt.plot(x, trend[col], label=col, marker="o", linewidth=3)
+    plt.plot(x, trend["Main"], label="Main", marker="o", linewidth=3, linestyle="-")
+    plt.plot(x, trend["Supporting"], label="Supporting", marker="o", linewidth=3, linestyle="--")
     plt.xlabel("Period", fontsize=28, fontweight="bold")
     plt.ylabel("Mean Character Count", fontsize=28, fontweight="bold")
     plt.gca().yaxis.set_label_coords(-0.08, 0.34)

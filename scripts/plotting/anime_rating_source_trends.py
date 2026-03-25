@@ -55,6 +55,9 @@ SOURCE_TOP9: List[str] = [
     "Book",
 ]
 
+RATING_HATCHES: List[str] = ["", "//", "\\\\", "o", "xx", "*"]
+SOURCE_HATCHES: List[str] = ["", "//", "\\\\", ".", "xx", "o", "++", "xx", "*", "o-"]
+
 
 def group_source(src: str | None) -> str:
     if not isinstance(src, str) or src == "":
@@ -105,6 +108,7 @@ def plot_rating_proportion(df: pd.DataFrame, out_file: Path) -> None:
 
     palette = sns.color_palette("colorblind", len(RATING_ORDER))
     color_dict = dict(zip(RATING_ORDER, palette))
+    hatch_dict = dict(zip(RATING_ORDER, RATING_HATCHES))
 
     years_int = [int(y) for y in year_labels if y != "<1960"]
     ten_years = list(range(1970, max(years_int) + 1, 10)) if years_int else []
@@ -124,6 +128,9 @@ def plot_rating_proportion(df: pd.DataFrame, out_file: Path) -> None:
             bottom=bottom,
             label=rating,
             color=color_dict[rating],
+            hatch=hatch_dict[rating],
+            edgecolor="white",
+            linewidth=0.5,
         )
         bottom = pivot[rating].copy() if bottom is None else (bottom + pivot[rating])
 
@@ -174,6 +181,7 @@ def plot_source_proportion(df: pd.DataFrame, out_file: Path) -> None:
     palette = sns.color_palette("colorblind", len(SOURCE_TOP9)) + [(0.75, 0.75, 0.75)]
     source_order = SOURCE_TOP9 + ["Other"]
     color_dict = dict(zip(source_order, palette))
+    hatch_dict = dict(zip(source_order, SOURCE_HATCHES))
 
     years_int = [int(y) for y in year_labels if y != "<1960"]
     ten_years = list(range(1970, max(years_int) + 1, 10)) if years_int else []
@@ -188,7 +196,14 @@ def plot_source_proportion(df: pd.DataFrame, out_file: Path) -> None:
         if src not in pivot.columns:
             continue
         plt.bar(
-            pivot.index, pivot[src], bottom=bottom, label=src, color=color_dict[src]
+            pivot.index,
+            pivot[src],
+            bottom=bottom,
+            label=src,
+            color=color_dict[src],
+            hatch=hatch_dict[src],
+            edgecolor="white",
+            linewidth=0.5,
         )
         bottom = pivot[src].copy() if bottom is None else (bottom + pivot[src])
 
